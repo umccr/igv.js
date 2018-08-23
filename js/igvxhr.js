@@ -25,23 +25,107 @@
 
 var igv = (function (igv) {
 
-    var NONE = 0;
-    var GZIP = 1;
-    var BGZF = 2;
-    igv.xhr = {};
+    "use strict";
 
 
-    igv.xhr.load = function (url, options) {
+    const NONE = 0;
+    const GZIP = 1;
+    const BGZF = 2;
 
-        options = options || {};
+    igv.xhr = {
 
-        if (url instanceof File) {
-            return loadFileSlice(url, options);
-        } else {
-            return load.call(this, url, options);
+        loadsInProgress: {
+
+            cache: {},
+
+            add: function (caller, xhr) {
+                if (!this.cache[caller]) {
+                    this.cache[caller] = new Set();
+                }
+                this.cache[caller].add(xhr);
+            },
+
+            remove: function (caller, xhr) {
+
+                if (this.cache[caller]) {
+                    this.cache[caller].delete(xhr);
+                }
+
+            },
+
+            abort(caller) {
+
+                if (this.cache[caller]) {
+                    for (var xhr of this.cache[caller]) {
+                        xhr.abort();
+                    }
+                    delete this.cache[caller];
+                }
+            }
+
+        },
+
+        load: function (url, options) {
+
+            options = options || {};
+
+            if (url instanceof File) {
+                return loadFileSlice(url, options);
+            } else {
+                return load.call(this, url, options);
+            }
+
+        },
+
+        loadJson: function (url, options) {
+
+            options = options || {};
+
+            var method = options.method || (options.sendData ? "POST" : "GET");
+
+            if (method == "POST") options.contentType = "application/json";
+
+            return igv.xhr.load(url, options)
+
+                .then(function (result) {
+
+                    if (result) {
+                        return JSON.parse(result);
+                    }
+                    else {
+                        return result;
+                    }
+                })
+        },
+
+        loadString: function (path, options) {
+
+            options = options || {};
+
+            if (path instanceof File) {
+                return loadStringFromFile(path, options);
+            } else {
+                return loadStringFromUrl(path, options);
+            }
+        },
+
+        loadArrayBuffer: function (url, options) {
+
+            options = options || {};
+            options.responseType = "arraybuffer";
+
+            if (url instanceof File) {
+                return loadFileSlice(url, options);
+            } else {
+
+                return load.call(this, url, options);
+            }
+        },
+
+        abort: function (caller) {
+            igv.xhr.loadsInProgress.abort(caller);
         }
-
-    };
+    }
 
 
     function load(url, options) {
@@ -78,21 +162,22 @@ var igv = (function (igv) {
 
             return new Promise(function (fullfill, reject) {
 
-                var xhr = new XMLHttpRequest(),
-                    sendData = options.sendData || options.body,
-                    method = options.method || (sendData ? "POST" : "GET"),
-                    range = options.range,
-                    responseType = options.responseType,
-                    contentType = options.contentType,
-                    mimeType = options.mimeType,
-                    headers = options.headers || {},
-                    isSafari = navigator.vendor.indexOf("Apple") == 0 && /\sSafari\//.test(navigator.userAgent),
-                    isChrome = navigator.userAgent.indexOf('Chrome') > -1,
-                    withCredentials = options.withCredentials,
-                    header_keys, key, value, i;
+                const xhr = new XMLHttpRequest();
+                const sendData = options.sendData || options.body;
+                const method = options.method || (sendData ? "POST" : "GET");
+                const range = options.range;
+                const responseType = options.responseType;
+                const contentType = options.contentType;
+                const mimeType = options.mimeType;
+                const isSafari = navigator.vendor.indexOf("Apple") == 0 && /\sSafari\//.test(navigator.userAgent);
+                const isChrome = navigator.userAgent.indexOf('Chrome') > -1;
+                const withCredentials = options.withCredentials;
+
 
                 // Support for GCS paths.
                 url = url.startsWith("gs://") ? igv.Google.translateGoogleCloudURL(url) : url;
+
+                const headers = options.headers || {};
 
                 if (options.token) {
                     headers["Authorization"] = 'Bearer ' + options.token;
@@ -103,7 +188,6 @@ var igv = (function (igv) {
                     url = igv.Google.addApiKey(url);
 
                     // Add google headers (e.g. oAuth)
-                    headers = headers || {};
                     igv.Google.addGoogleHeaders(headers);
 
                 } else if (options.oauth) {
@@ -134,10 +218,10 @@ var igv = (function (igv) {
                     xhr.responseType = responseType;
                 }
                 if (headers) {
-                    header_keys = Object.keys(headers);
-                    for (i = 0; i < header_keys.length; i++) {
-                        key = header_keys[i];
-                        value = headers[key];
+                    const header_keys = Object.keys(headers);
+                    for (let i = 0; i < header_keys.length; i++) {
+                        const key = header_keys[i];
+                        const value = headers[key];
                         // console.log("Adding to header: " + key + "=" + value);
                         xhr.setRequestHeader(key, value);
                     }
@@ -149,6 +233,12 @@ var igv = (function (igv) {
                 }
 
                 xhr.onload = function (event) {
+
+
+                    if (igv.xhr.loadsInProgress[options.caller]) {
+                         igv.xhr.loadsInProgress.add(options.caller, xhr);
+                    }
+
                     // when the url points to a local file, the status is 0 but that is no error
                     if (xhr.status == 0 || (xhr.status >= 200 && xhr.status <= 300)) {
                         if (range && xhr.status != 206 && range.start !== 0) {
@@ -197,21 +287,8 @@ var igv = (function (igv) {
                 };
 
                 xhr.onerror = function (event) {
+                    handleError("Error accessing resource: " + url + " Status: " + xhr.status);
 
-                    if (isCrossDomain(url) && !options.crossDomainRetried &&
-                        igv.browser &&
-                        igv.browser.crossDomainProxy &&
-                        url != igv.browser.crossDomainProxy) {
-
-                        options.sendData = "url=" + url;
-                        options.crossDomainRetried = true;
-
-                        load.call(this, igv.browser.crossDomainProxy, options)
-                            .then(fullfill);
-                    }
-                    else {
-                        handleError("Error accessing resource: " + url + " Status: " + xhr.status);
-                    }
                 }
 
 
@@ -220,18 +297,37 @@ var igv = (function (igv) {
                 };
 
                 xhr.onabort = function (event) {
+
+                    if (igv.xhr.loadsInProgress[options.caller]) {
+                         igv.xhr.loadsInProgress.remove(options.caller, xhr);
+                    }
+
                     console.log("Aborted");
                     reject(event);
                 };
 
                 try {
+                    if (options.caller) {
+                        igv.xhr.loadsInProgress.add(options.caller, xhr);
+                    }
+
                     xhr.send(sendData);
+
                 } catch (e) {
+                    if (igv.xhr.loadsInProgress[options.caller]) {
+                         igv.xhr.loadsInProgress.remove(options.caller, xhr);
+                    }
                     reject(e);
                 }
 
 
                 function handleError(message) {
+
+
+                    if (igv.xhr.loadsInProgress[options.caller]) {
+                        igv.xhr.loadsInProgress.remove(options.caller, xhr);
+                    }
+
                     if (reject) {
                         reject(new Error(message));
                     }
@@ -242,54 +338,6 @@ var igv = (function (igv) {
             });
         }
     };
-
-    igv.xhr.loadArrayBuffer = function (url, options) {
-
-        options = options || {};
-        options.responseType = "arraybuffer";
-
-        if (url instanceof File) {
-            return loadFileSlice(url, options);
-        } else {
-
-            return load.call(this, url, options);
-        }
-
-    };
-
-    igv.xhr.loadJson = function (url, options) {
-
-        options = options || {};
-
-        var method = options.method || (options.sendData ? "POST" : "GET");
-
-        if (method == "POST") options.contentType = "application/json";
-
-        return igv.xhr.load(url, options)
-
-            .then(function (result) {
-
-                if (result) {
-                    return JSON.parse(result);
-                }
-                else {
-                    return result;
-                }
-            })
-
-    };
-
-    igv.xhr.loadString = function (path, options) {
-
-        options = options || {};
-
-        if (path instanceof File) {
-            return loadStringFromFile(path, options);
-        } else {
-            return loadStringFromUrl(path, options);
-        }
-    };
-
 
     function loadFileSlice(localfile, options) {
 
@@ -496,7 +544,7 @@ var igv = (function (igv) {
         return url.includes("googleapis") && !url.includes("urlshortener");
     }
 
-// Increments an anonymous usage count.  Count is anonymous, needed for our continued funding.  Please don't delete
+    // Increments an anonymous usage count.  Count is anonymous, needed for our continued funding.  Please don't delete
     const href = window.document.location.href;
     if (!(href.includes("localhost") || href.includes("127.0.0.1"))) {
         var url = "https://data.broadinstitute.org/igv/projects/current/counter_igvjs.php?version=" + "0";

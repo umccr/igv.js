@@ -246,7 +246,7 @@ var igv = (function (igv) {
         self.startSpinner();
 
         // console.log('get features');
-        return getFeatures.call(self, referenceFrame.chrName, bpStart, bpEnd, referenceFrame.bpPerPixel, self)
+        return getFeatures.call(self, referenceFrame.chrName, bpStart, bpEnd, referenceFrame.bpPerPixel)
 
             .then(function (features) {
                 self.hideMessage();
@@ -445,8 +445,7 @@ var igv = (function (igv) {
             $(this.popover).off();
             $(this.popover).empty();
         }
-        // Null out all properties -- this should not be neccessary, but just in case there is a
-        // reference to self somewhere we want to free memory.
+        // Null out all properties -- this should not be neccessary, but doesn't hurt
         Object.keys(this).forEach(function (key, i, list) {
             self[key] = undefined;
         })
