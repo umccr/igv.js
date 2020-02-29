@@ -102,7 +102,7 @@ const Browser = function (options, parentDiv) {
 function initialize(options) {
     var genomeId;
 
-    if(options.gtex) {
+    if (options.gtex) {
         GtexUtils.gtexLoaded = true
     }
     this.flanking = options.flanking;
@@ -613,17 +613,17 @@ Browser.prototype.loadROI = async function (config) {
     await this.updateViews(undefined, undefined, true);
 }
 
-Browser.prototype.removeROI = function (roiToRemove) {                          
-    for (let i = 0; i < this.roi.length; i++) {                                 
-        if (this.roi[i].name === roiToRemove.name) {                            
-            this.roi.splice(i, 1);                                              
-            break;                                                              
-        }                                                                       
-    }                                                                           
-                                                                                
-    for (let tv of this.trackViews) {                                           
-        tv.updateViews(true);                                                   
-    }                                                                           
+Browser.prototype.removeROI = function (roiToRemove) {
+    for (let i = 0; i < this.roi.length; i++) {
+        if (this.roi[i].name === roiToRemove.name) {
+            this.roi.splice(i, 1);
+            break;
+        }
+    }
+
+    for (let tv of this.trackViews) {
+        tv.updateViews(true);
+    }
 }
 
 /**
@@ -883,15 +883,14 @@ Browser.prototype.removeAllTracks = function (removeSequence) {
  * @returns {Array}  tracks with given property value.  e.g. findTracks("type", "annotation")
  */
 Browser.prototype.findTracks = function (property, value) {
-
-    var tracks = [];
-    this.trackViews.forEach(function (trackView) {
-        if (value === trackView.track[property]) {
-            tracks.push(trackView.track)
-        }
-    })
-    return tracks;
-};
+    return this.trackViews
+        .map(function (tv) {
+            return tv.track
+        })
+        .filter(function (t) {
+            return t && value === t[property]
+        })
+}
 
 Browser.prototype.setTrackHeight = function (newHeight) {
 

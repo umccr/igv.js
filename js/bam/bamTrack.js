@@ -96,9 +96,7 @@ const BAMTrack = extend(TrackBase,
 
             // Loop through current genomic states, assign sort to first matching state
             for (let gs of browser.genomicStateList) {
-
                 if (gs.chromosome.name === range.chr && range.start >= gs.start && range.start <= gs.end) {
-
                     currentSorts[gs.id] = {
                         chr: range.chr,
                         position: range.start,
@@ -106,13 +104,36 @@ const BAMTrack = extend(TrackBase,
                         direction: sort.direction === undefined ? true : "ASC" === sort.direction,
                         tag: sort.tag ? sort.tag.toUpperCase() : undefined
                     }
-
                     break;
                 }
             }
 
         }
     });
+
+BAMTrack.prototype.sort = function ({chr, position, option, tag}) {
+    // Convert chr to canonical name for reference genome (e.g. chr1 -> 1, chrM -> MT, etc.)
+    chr = this.browser.genome.getChromosomeName(chr);
+
+    // 0 based coords
+    const start = position - 1;
+
+    // Find genomic states containing position
+    const viewports = this.trackView.viewports.filter(function (vp) {
+        const gs = vp.genomicState;
+        return (gs.chromosome.name === chr && start >= gs.start && start <= gs.end)
+    })
+
+    for(let vp of viewports) {
+        this.alignmentTrack.sortRows({
+            chr: chr,
+            position: start,
+            option: option,
+            tag: tag
+        },
+            vp)
+    }
+}
 
 BAMTrack.prototype.getFeatures = async function (chr, bpStart, bpEnd, bpPerPixel, viewport) {
 
@@ -987,6 +1008,9 @@ AlignmentTrack.prototype.contextMenuItemList = function (clickState) {
 
 
     function sortByOption(option) {
+        if (!clickState.viewport.tile) {
+            return;
+        }
         sortRows({
             chr: genomicState.referenceFrame.chrName,
             position: Math.floor(clickState.genomicLocation),
@@ -995,6 +1019,9 @@ AlignmentTrack.prototype.contextMenuItemList = function (clickState) {
     }
 
     function sortByTag() {
+        if (!clickState.viewport.tile) {
+            return;
+        }
         const config =
             {
                 label: 'Tag Name',
@@ -1015,10 +1042,6 @@ AlignmentTrack.prototype.contextMenuItemList = function (clickState) {
     }
 
     function sortRows(options) {
-
-        if (!clickState.viewport.tile) {
-            return;
-        }
 
         const currentSorts = self.parent.sortObjects;
         const cs = currentSorts[viewport.genomicState.id];
@@ -1042,14 +1065,22 @@ AlignmentTrack.prototype.contextMenuItemList = function (clickState) {
         if (!alignment) return;
 
         const seqstring = alignment.seq; //.map(b => String.fromCharCode(b)).join("");
-        if(!seqstring|| "*" === seqstring) {
+        if (!seqstring || "*" === seqstring) {
             self.browser.presentAlert("Read sequence: *")
         } else {
             self.browser.presentAlert(seqstring);
         }
     }
-
 };
+
+AlignmentTrack.prototype.sortRows = function (options, viewport) {
+    const currentSorts = this.parent.sortObjects;
+    const cs = currentSorts[viewport.genomicState.id];
+    options.direction = cs ? !cs.direction : true;
+    this.sortAlignmentRows(options, viewport.getCachedFeatures());
+    this.parent.trackView.repaintViews();
+    currentSorts[viewport.genomicState.id] = options;
+}
 
 AlignmentTrack.prototype.getClickedObject = function (viewport, y, genomicLocation) {
 

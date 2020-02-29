@@ -28,7 +28,7 @@
     var options =
         {
             genome: "hg38",
-            locus: "chr1:155,101,137-155,101,341",
+            locus: "chr1:155,100,624-155,100,828",
             tracks: [
                 {
                     type: 'alignment',
@@ -58,9 +58,19 @@
     var igvDiv = document.getElementById("igvDiv");
 
     igv.createBrowser(igvDiv, options)
-        .then(function (browser) {
-            console.log("Created IGV browser");
-            window.igvBrowser = browser;
+        .then(async function (browser) {
+
+            const bamTrack = browser.findTracks("name", "HG00107")[0];
+
+            await browser.search("1:155100721");
+
+            bamTrack.sort({
+                chr: "1",
+                position: 155100721,
+                option: "NUCLEOTIDE"
+            })
+
+
         })
 
 
