@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <meta name="description" content="">
     <meta name="author" content="">
-    <link rel="shortcut icon" href="https://igv.org/web/https://igv.org/web/img/favicon.ico">
+    <link rel="shortcut icon" href="https://igv.org/web/img/favicon.ico">
 
     <title>igv.js</title>
 
@@ -24,23 +24,37 @@
 
     var div = document.getElementById("myDiv")
     var options = {
-        genome: "hg19",
-        locus: "chr8:128,734,098-128,763,217",
+        genome: "hg38",
+        locus: "20:14370",
         tracks: [
-            {
-                type: 'variant',
-                name: 'giab.NA12878',
-                sourceType: 'htsget',
-                format: "VCF",
-                url: 'https://htsget-rs.umccr.workers.dev/variants/vcf/spec-v4.3'
-            },
+            // {
+            //     type: 'variant',
+            //     name: 'VCF v4.3',
+            //     sourceType: 'htsget',
+            //     format: "VCF",
+            //     url: 'https://htsget-rs.umccr.workers.dev/variants/vcf/spec-v4.3'
+            // },
+            // {
+            //     type: 'variant',
+            //     name: 'BCF v4.3',
+            //     sourceType: 'htsget',
+            //     format: "BCF",
+            //     url: 'https://htsget-rs.umccr.workers.dev/variants/bcf/spec-v4.3'
+            // },
             // {
             //    type: 'alignment',
-            //    name: 'giab.NA12878.NIST7086.1',
+            //    name: 'Mithocondrial DNA',
             //    sourceType: 'htsget',
-            //    format: 'bam',
-            //     url: 'htsget://htsget.ga4gh.org/reads/giab.NA12878.NIST7086.1'
-            // }
+            //    format: 'BAM',
+            //    url: 'https://htsget-rs.umccr.workers.dev/reads/bam/mt.sorted'
+            // },
+            {
+               type: 'alignment',
+               name: 'Mithocondrial DNA',
+               sourceType: 'htsget',
+               format: 'BAM',
+               url: 'http://localhost:8080/reads/data/bam/mt.sorted'
+            }
         ]
     }
 
