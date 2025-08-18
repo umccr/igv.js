@@ -25,7 +25,7 @@
     var div = document.getElementById("myDiv")
     var options = {
         genome: "hg38",
-        locus: "20:14370",
+        locus: "chrM:4,851-8,872",
         tracks: [
             // {
             //     type: 'variant',
@@ -34,6 +34,8 @@
             //     format: "VCF",
             //     url: 'https://htsget-rs.umccr.workers.dev/variants/vcf/spec-v4.3'
             // },
+            //
+            // // BCF is NOT supported in IGV.js
             // {
             //     type: 'variant',
             //     name: 'BCF v4.3',
@@ -54,6 +56,36 @@
                sourceType: 'htsget',
                format: 'BAM',
                url: 'http://localhost:8080/reads/data/bam/mt.sorted'
+            },
+            {
+                name: "Allowed htsget regions",
+                type: "interact",
+                features: [
+                    {
+                        "chrM": "chrM",
+                        "start1": 5904,
+                        "end1": 7445,
+                        "type": "Allowed"
+                    },
+                    {
+                        "chrM": "chrM",
+                        "start1": 0,
+                        "end1": 5903,
+                        "type": "Forbidden"
+                    },
+                    {
+                        "chrM": "chrM",
+                        "start1": 7446,
+                        "end1": 16522,
+                        "type": "Forbidden"
+                    }
+                ],
+                colorBy: "type",
+                colorTable: {
+                    "Forbidden": "red",
+                    "Allowed": "green",
+                    "C": "#7fff00",
+                },
             }
         ]
     }
