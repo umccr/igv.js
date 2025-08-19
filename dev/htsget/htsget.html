@@ -59,33 +59,17 @@
             },
             {
                 name: "Allowed htsget regions",
+                url: "http://localhost:8082/data/bed/allowed_regions.bed",
+                format: "bed",
                 type: "annotation",
-                features: [
-                    {
-                        "chr": "chrM",
-                        "start": 5904,
-                        "end": 7445,
-                        "type": "Allowed"
-                    },
-                    {
-                        "chr": "chrM",
-                        "start": 0,
-                        "end": 5903,
-                        "type": "Forbidden"
-                    },
-                    {
-                        "chr": "chrM",
-                        "start": 7446,
-                        "end": 16569,
-                        "type": "Forbidden"
-                    }
-                ],
-                colorBy: "type",
+                colorBy: "name",
                 colorTable: {
+                    // "Forbidden": "rgba(255,0,0,0.1)",   // red @ 10% opacity,
+                    // "Allowed": "rgba(0,255,0,0.1)"      // green @ 10% opacity
                     "Forbidden": "red",
                     "Allowed": "green"
-                },
-            }
+                }
+            },
         ]
     }
 
